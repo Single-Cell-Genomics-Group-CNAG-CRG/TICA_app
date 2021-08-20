@@ -1,0 +1,14 @@
+name: TICA
+title: TICA
+username:
+account: paula-nieto-garcia
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 4476611
+bundleId: 4945238
+url: https://paula-nieto-garcia.shinyapps.io/TICA/
+when: 1629469755.74693
+lastSyncTime: 1629469755.74693
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: footer.md|home.md|how_to.md

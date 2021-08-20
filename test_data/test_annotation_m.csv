@@ -1,0 +1,17 @@
+cluster,gene
+cluster_1,Ms4a1
+cluster_1,Cd79a
+cluster_1,Cd79b
+cluster_1,Ighm
+cluster_2,Cd4
+cluster_2,Il7r
+cluster_2,Cd3e
+cluster_2,Foxp3
+cluster_3,C1qA
+cluster_3,Cd68
+cluster_3,Apoe
+cluster_3,C1qc
+cluster_4,Lag3
+cluster_4,Havcr2
+cluster_4,Pdcd1
+cluster_4,Tigit
