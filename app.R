@@ -249,7 +249,8 @@ ui <-
                         br(),
                #         h5("Using the TICA to deconvolute spot-mixtures in spatial transcriptomic datasets"),
                         br(),
-                        h3("This functionality is under development and will be available soon. Sorry for the inconvenience!", align = "center"),
+                        h3("This functionality is under development and will be available soon.", align = "center"),
+                        h3("Sorry for the inconvenience!", align = "center"),
                         br(),
                         br()
                #          sidebarLayout(
@@ -275,9 +276,13 @@ ui <-
       
       tabPanel("Contact", 
                br(),
-               HTML("<p>You can find more information about the Tumor Immune Cell Atlas in <a href='https://github.com/Single-Cell-Genomics-Group-CNAG-CRG/Tumor-Immune-Cell-Atlas'>our github repository</a>! where you can also directly contact us or ask your questions directly. We appreciate every kind of suggestion, comment or discussion and we thank you for using our tool. </p>"),
-               br(), br(), br(), br(), br(), br(), br(), br(), br(), br(), br(), br(),
-               HTML("<p>This web App is currently actively under development. Thanks for understanding!</p>"),
+               br(), 
+               fluidRow(
+                 column(2, ""),
+                 column(8, 
+                        includeHTML("contact.html")
+                 )
+               ),
                br(),
                hr(),
                div(

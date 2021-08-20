@@ -5,10 +5,10 @@ account: paula-nieto-garcia
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 4476611
-bundleId: 4945238
+bundleId: 4945624
 url: https://paula-nieto-garcia.shinyapps.io/TICA/
-when: 1629469755.74693
-lastSyncTime: 1629469755.74693
+when: 1629477989.30451
+lastSyncTime: 1629477989.30451
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: footer.md|home.md|how_to.md
+ignoredFiles: contact.md|footer.md|home.md|how_to.md|test_data/test_annotation_H.csv|test_data/test_annotation_m.csv|test_data/test_projection.csv
