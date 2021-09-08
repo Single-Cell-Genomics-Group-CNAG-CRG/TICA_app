@@ -8,7 +8,17 @@ library(matchSCore2)
 
 cell_type_palette <- readRDS("www/complete_cell_type_palette.rds")
 
+# load selected annotation level
+atlas <- readRDS("www/TICAtlas_lv2_subset_toy.rds")
+
+# Load markers
+atlas_markers1 <- readRDS("www/TICAtlas_markers_lv1.rds")
+atlas_markers2 <- readRDS("www/TICAtlas_markers_lv2.rds")
+
 #######################################################
+
+### Load Visualization functions
+source("viz_tab.R")
 
 ### Define functions
 
@@ -19,26 +29,20 @@ projection <- function(query, annotation, ndims) {
   query <- CreateSeuratObject(counts = read.delim(query, 
                                                   sep = ","))
   
-  # load selected annotation level
-  
-  if(annotation == "level 1"){
-    atlas <- readRDS("www/TICAtlas_lv1_subset.rds")
-  }
-  if(annotation == "level 2"){
-    atlas <- readRDS("www/TICAtlas_lv2_subset.rds")
-  }
-  
   # project and make predictions
-  
-  predictions <- TransferData(anchorset = FindTransferAnchors(reference = atlas, 
-                                                              query = query, 
-                                                              dims = 1:ndims, 
-                                                              normalization.method = "LogNormalize",
-                                                              reference.assay = "RNA", 
-                                                              query.assay = "RNA",
-                                                              verbose = FALSE), 
-                              refdata = atlas$annotation)
-  
+  #### Modifiy annotation here!
+  predictions <- TransferData(
+    anchorset = FindTransferAnchors(
+      reference = atlas, 
+      query = query, 
+      dims = 1:ndims, 
+      normalization.method = "LogNormalize",
+      reference.assay = "RNA", 
+      query.assay = "RNA",
+      verbose = FALSE), 
+    # refdata = atlas$annotation,
+    refdata = atlas@meta.data[, annotation])
+
   # get predictions
   
   predictions <- predictions[, c("predicted.id", "prediction.score.max")]
@@ -58,8 +62,8 @@ plot_projections <- function(results){
     scale_fill_manual(values = cell_type_palette) +
     theme(text = element_text(size = 25),
           axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
-          legend.text=element_text(size=16)) +
-    guides(fill=guide_legend(ncol=1, override.aes = list(size=3)))
+          legend.text = element_text(size = 16)) +
+    guides(fill = guide_legend(ncol = 1, override.aes = list(size = 3)))
 
     
   return(bplot)
@@ -71,27 +75,25 @@ plot_projections <- function(results){
 plot_heatmap <- function(marker_genes, annotation, organism){
   
   # load selected annotation level
-  
   if(annotation == "lv1"){
-    atlas_markers <- readRDS("www/TICAtlas_markers_lv1.rds")
+    atlas_markers <- atlas_markers1
   }
   if(annotation == "lv2"){
-    atlas_markers <- readRDS("www/TICAtlas_markers_lv2.rds")
+    atlas_markers <- atlas_markers2
   }
   
   # read query marker genes
-  
   marker_genes <- read.delim(marker_genes,
                              header = TRUE,
                              sep = ",")
   
   if(organism == "mmus"){
-    marker_genes$gene <- str_to_upper(marker_genes$gene)
+    marker_genes$gene <- stringr::str_to_upper(marker_genes$gene)
   }
   
   marker_genes <- split(marker_genes$gene, marker_genes$cluster)
   
-  ms <- matchSCore2(gene_cl.ref = atlas_markers[sort(names(atlas_markers))], 
+  ms <- matchSCore2::matchSCore2(gene_cl.ref = atlas_markers[sort(names(atlas_markers))], 
                     gene_cl.obs = marker_genes[sort(names(marker_genes))], 
                     ylab = "Atlas cell types", 
                     xlab = "Query clusters")
@@ -156,6 +158,52 @@ ui <-
                  column(2, ""),
                  column(8, 
                         includeHTML("how_to.html")
+                 )
+               ),
+               br(),
+               hr(),
+               div(
+                 class = "footer",
+                 includeHTML("footer.html")
+               )
+      ),
+      
+      ### TAB Visualization
+      
+      tabPanel("Visualization",
+               h2("Visualize genes on the TICA", align = "center"),
+               br(),
+               # h5("Using Seurat LabelTransfer we project TICA's cell-types onto new datasets"),
+               # br(),
+               ##
+               sidebarLayout(
+                 sidebarPanel(
+                   # fileInput(inputId = "projectionFile", "Upload your file", multiple = FALSE, accept = ".csv", width = NULL, buttonLabel = "Browse...", placeholder = "No file selected"),
+                   # actionButton(inputId = "projectionCheckFile", "Verify format"),
+                   # br(), br(),
+                   selectizeInput(inputId = "annotLevel", "Annotation level to use", choices = c("annotation", "annotation2", "canaer_type"), multiple = FALSE),
+                   selectizeInput(
+                     inputId = "geneMarker",
+                     "Gene to visualize",
+                     selected = "CD3D",
+                     choices = NULL,
+                     options = list(create = TRUE, maxOptions = 5),
+                     size = 1,
+                     multiple = FALSE),
+                   # sliderInput(inputId = "projectionDims", 
+                   #             label = "Select number of dimensions to use", 
+                   #             min = 1, 
+                   #             max = 50, 
+                   #             value = 25, 
+                   #             step = 1,
+                   #             round = TRUE
+                   # ),
+                   # uiOutput(outputId = "projectionRunAppear"),
+                   # br(), br(),
+                   # uiOutput(outputId = "projectionDownloadAppear")
+                 ),
+                 mainPanel(
+                   plotOutput(outputId = "VizPlts")
                  )
                ),
                br(),
@@ -298,7 +346,31 @@ ui <-
 
 ### SERVER
 
-server <- function(input, output) {
+server <- function(input, output, session) {
+  # Setting maximum file size to 8GB
+  options(shiny.maxRequestSize = 8000 * 1024 ^ 2)
+  
+  # Visualization
+  
+  # Use this trick from the website below to be abel to load all the rownames
+  # https://shiny.rstudio.com/articles/selectize.html
+  # You may use choices = NULL to create an empty selectize instance, so that it will load quickly initially, then use updateSelectize(server = TRUE) to pass the choices
+  updateSelectizeInput(session, 'geneMarker', choices = rownames(atlas), server = TRUE)
+  
+  output$VizPlts <- renderPlot({
+    
+    # Build the pices of the final plot
+    pt1 <- DimPlot_fun(atlas = atlas, group = input$annotLevel, x = "umap_x", y = "umap_y")
+    pt2 <- FeatPlot_fun(atlas = atlas, gene = input$geneMarker, x = "umap_x", y = "umap_y")
+    pt3 <- VlnPlot_fun(atlas = atlas, group = input$annotLevel, gene = input$geneMarker) +
+      ggplot2::theme(legend.position = "none")
+    
+    # Put them together with patchwork
+    pt_grid <- ( pt1 | pt2 ) / pt3
+    
+    # Return plot
+    pt_grid
+    }, height = 750)
   
   #### Projection tab
   
@@ -328,8 +400,8 @@ server <- function(input, output) {
       
     } else{
       output$projectionRunAppear <- renderUI(
-        actionButton("projectionRun","Run",
-                     style="color: #fff; background-color: #e95420; border-color: #c34113;
+        actionButton("projectionRun", "Run",
+                     style = "color: #fff; background-color: #e95420; border-color: #c34113;
                                 border-radius: 10px; 
                                 border-width: 2px"),
       )
