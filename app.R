@@ -5,8 +5,10 @@ library(shinythemes)
 library(Seurat)
 library(tidyverse)
 library(matchSCore2)
+library(SPOTlight)
 
 cell_type_palette <- readRDS("www/complete_cell_type_palette.rds")
+cancer_type_palette <- readRDS("www/cancer_type_palette.rds")
 
 #######################################################
 
@@ -17,15 +19,16 @@ cell_type_palette <- readRDS("www/complete_cell_type_palette.rds")
 projection <- function(query, annotation, ndims) {
 
   query <- CreateSeuratObject(counts = read.delim(query, 
-                                                  sep = ","))
+                                                  sep = ",",
+                                                  row.names = 1))
   
   # load selected annotation level
   
   if(annotation == "level 1"){
-    atlas <- readRDS("www/TICAtlas_lv1_subset.rds")
+    metadata_col <- "lv1_annot"
   }
   if(annotation == "level 2"){
-    atlas <- readRDS("www/TICAtlas_lv2_subset.rds")
+    metadata_col <- "lv2_annot"
   }
   
   # project and make predictions
@@ -37,7 +40,7 @@ projection <- function(query, annotation, ndims) {
                                                               reference.assay = "RNA", 
                                                               query.assay = "RNA",
                                                               verbose = FALSE), 
-                              refdata = atlas$annotation)
+                              refdata = atlas$lv1_annot)
   
   # get predictions
   
@@ -99,6 +102,40 @@ plot_heatmap <- function(marker_genes, annotation, organism){
   
 }
 
+
+# function to deconvolute spatial/bulk datasets
+
+deconvolution <- function(query, annotation){
+  
+  # load selected annotation level
+  
+  if(annotation == "lv1"){
+    atlas_markers <- readRDS("www/TICAtlas_FindAllMarkers_lv1.rds")
+    metadata_col <- "lv1_annot"
+  }
+  if(annotation == "lv2"){
+    atlas_markers <- readRDS("www/TICAtlas_FindAllMarkers_lv2.rds")
+    metadata_col <- "lv2_annot"
+  }
+  
+  # read query
+  query <- read.delim(query, 
+                      sep = ",")
+  
+  # Run SPOTlight
+  spotlight_ls <- spotlight_deconvolution(
+    se_sc = atlas,
+    counts_spatial = counts_query,
+    clust_vr = metadata_col,
+    cluster_markers = atlas_markers,
+    hvg = 3000,
+    ntop = NULL
+  )
+  
+}
+
+
+
 #############################################################
 
 ### Define UI 
@@ -108,8 +145,6 @@ ui <-
     theme = shinytheme("united"),
     
     ### TITLE
-    
-    #titlePanel(title=div(img(src="www/cnag-crg-logo.jpg", width="300"), "Tumor Immune Cell Atlas")),
     
     titlePanel(
       fluidRow(
@@ -299,6 +334,9 @@ ui <-
 ### SERVER
 
 server <- function(input, output) {
+  
+  # load atlas seurat obj (6 metadata columns: subtype, source, lv1_annot, lv2_annot, UMAP_1, UMAP_2)
+  atlas <- readRDS("www/TICAtlas_complete_subset.rds")
   
   #### Projection tab
   
