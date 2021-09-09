@@ -6,14 +6,17 @@ library(Seurat)
 library(tidyverse)
 library(matchSCore2)
 
-cell_type_palette <- readRDS("www/complete_cell_type_palette.rds")
+# cell_type_palette <- readRDS("www/complete_cell_type_palette.rds")
+# cancer_type_palette <- readRDS("www/cancer_type_palette.rds")
 
 # load selected annotation level
-atlas <- readRDS("www/TICAtlas_lv2_subset_toy.rds")
+atlas <- readRDS("www/TICAtlas_complete_subset.rds")
 
 # Load markers
 atlas_markers1 <- readRDS("www/TICAtlas_markers_lv1.rds")
 atlas_markers2 <- readRDS("www/TICAtlas_markers_lv2.rds")
+
+complete_palette <- readRDS("www/complete_palette.rds")
 
 #######################################################
 
@@ -22,12 +25,13 @@ source("viz_tab.R")
 
 ### Define functions
 
-# function to project querys on the atlas to predict cell-wise annotation
+# function to project queries on the atlas to predict cell-wise annotation
 
 projection <- function(query, annotation, ndims) {
 
   query <- CreateSeuratObject(counts = read.delim(query, 
-                                                  sep = ","))
+                                                  sep = ",",
+                                                  row.names = 1))
   
   # project and make predictions
   #### Modifiy annotation here!
@@ -59,9 +63,9 @@ plot_projections <- function(results){
                       fill = `predicted cell type`)) +  
     geom_bar() +
     theme_minimal() +
-    scale_fill_manual(values = cell_type_palette) +
+    scale_fill_manual(values = complete_palette[results$`predicted cell type` %>% unique %>% sort]) +
     theme(text = element_text(size = 25),
-          axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+          axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
           legend.text = element_text(size = 16)) +
     guides(fill = guide_legend(ncol = 1, override.aes = list(size = 3)))
 
@@ -181,7 +185,7 @@ ui <-
                    # fileInput(inputId = "projectionFile", "Upload your file", multiple = FALSE, accept = ".csv", width = NULL, buttonLabel = "Browse...", placeholder = "No file selected"),
                    # actionButton(inputId = "projectionCheckFile", "Verify format"),
                    # br(), br(),
-                   selectizeInput(inputId = "annotLevel", "Annotation level to use", choices = c("annotation", "annotation2", "canaer_type"), multiple = FALSE),
+                   selectizeInput(inputId = "annotLevel", "Annotation level to use", choices = c("level 1" = "lv1_annot", "level 2" = "lv2_annot", "cancer type" = "subtype"), multiple = FALSE),
                    selectizeInput(
                      inputId = "geneMarker",
                      "Gene to visualize",
@@ -227,7 +231,7 @@ ui <-
                    fileInput(inputId = "projectionFile", "Upload your file", multiple = FALSE, accept = ".csv", width = NULL, buttonLabel = "Browse...", placeholder = "No file selected"),
                    actionButton(inputId = "projectionCheckFile", "Verify format"),
                    br(), br(),
-                   selectInput(inputId = "projectionLevel", "Annotation level to use", choices = c("level 1", "level 2"), multiple = FALSE),
+                   selectInput(inputId = "projectionLevel", "Annotation level to use", choices = c("level 1" = "lv1_annot", "level 2" = "lv2_annot"), multiple = FALSE),
                    sliderInput(inputId = "projectionDims", 
                                label = "Select number of dimensions to use", 
                                min = 1, 
@@ -352,7 +356,7 @@ server <- function(input, output, session) {
   
   # Visualization
   
-  # Use this trick from the website below to be abel to load all the rownames
+  # Use this trick from the website below to be able to load all the rownames
   # https://shiny.rstudio.com/articles/selectize.html
   # You may use choices = NULL to create an empty selectize instance, so that it will load quickly initially, then use updateSelectize(server = TRUE) to pass the choices
   updateSelectizeInput(session, 'geneMarker', choices = rownames(atlas), server = TRUE)
@@ -360,13 +364,15 @@ server <- function(input, output, session) {
   output$VizPlts <- renderPlot({
     
     # Build the pices of the final plot
-    pt1 <- DimPlot_fun(atlas = atlas, group = input$annotLevel, x = "umap_x", y = "umap_y")
-    pt2 <- FeatPlot_fun(atlas = atlas, gene = input$geneMarker, x = "umap_x", y = "umap_y")
+    pt1 <- DimPlot_fun(atlas = atlas, group = input$annotLevel, x = "UMAP_1", y = "UMAP_2")
+    pt2 <- FeatPlot_fun(atlas = atlas, gene = input$geneMarker, x = "UMAP_1", y = "UMAP_2")
     pt3 <- VlnPlot_fun(atlas = atlas, group = input$annotLevel, gene = input$geneMarker) +
-      ggplot2::theme(legend.position = "none")
+      ggplot2::theme(legend.position = "none", plot.margin = margin(0, 0, 0, 0))
+    legend <- ggpubr::get_legend(pt1)
+    pt1 <- pt1 + Seurat::NoLegend()
     
     # Put them together with patchwork
-    pt_grid <- ( pt1 | pt2 ) / pt3
+    pt_grid <- (( pt1 | pt2 ) / pt3) | ggpubr::as_ggplot(legend)
     
     # Return plot
     pt_grid
