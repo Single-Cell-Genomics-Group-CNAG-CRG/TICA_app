@@ -6,9 +6,6 @@ library(Seurat)
 library(tidyverse)
 library(matchSCore2)
 
-# cell_type_palette <- readRDS("www/complete_cell_type_palette.rds")
-# cancer_type_palette <- readRDS("www/cancer_type_palette.rds")
-
 # load selected annotation level
 atlas <- readRDS("www/TICAtlas_complete_subset.rds")
 
