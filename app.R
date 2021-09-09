@@ -369,7 +369,9 @@ server <- function(input, output, session) {
     pt1 <- pt1 + Seurat::NoLegend()
     
     # Put them together with patchwork
-    pt <- (( pt1 | pt2 ) / pt3) | ggpubr::as_ggplot(legend) & theme(strip.placement = NULL)
+    # Add & theme(strip.placement = NULL) bc patchwork has issues with certain themes
+    # https://github.com/thomasp85/patchwork/issues/132
+    pt <- (( pt1 | pt2 ) / pt3) | ggpubr::as_ggplot(legend) & ggplot2::theme(strip.placement = NULL)
     pt_grid <- pt + patchwork::plot_layout(widths = c(3, 1))
     # pt_grid <- (( pt1 | pt2 ) / pt3) | ggpubr::as_ggplot(legend) + patchwork::plot_layout(widths = c(2, 1))
     
