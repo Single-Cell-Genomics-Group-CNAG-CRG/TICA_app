@@ -60,7 +60,7 @@ projection <- function(query, annotation, ndims) {
 
 plot_projections <- function(results){
   bplot <- ggplot(results, aes(x = `predicted cell type`, 
-                      fill = `predicted cell type`)) +  
+                               fill = `predicted cell type`)) +  
     geom_bar() +
     theme_minimal() +
     scale_fill_manual(values = complete_palette[results$`predicted cell type` %>% unique %>% sort]) +
@@ -69,7 +69,7 @@ plot_projections <- function(results){
           legend.text = element_text(size = 16)) +
     guides(fill = guide_legend(ncol = 1, override.aes = list(size = 3)))
 
-    
+  
   return(bplot)
 }
 
@@ -101,6 +101,7 @@ plot_heatmap <- function(marker_genes, annotation, organism){
                     gene_cl.obs = marker_genes[sort(names(marker_genes))], 
                     ylab = "Atlas cell types", 
                     xlab = "Query clusters")
+
   return(ms$ggplot)
   
 }
@@ -140,8 +141,8 @@ ui <-
                  column(2, ""),
                  column(8, 
                         includeHTML("home.html")
-                        )
-                 ),
+                 )
+               ),
                br(),
                hr(),
                div(
@@ -239,13 +240,13 @@ ui <-
                                value = 25, 
                                step = 1,
                                round = TRUE
-                               ),
+                   ),
                    uiOutput(outputId = "projectionRunAppear"),
                    br(), br(),
                    uiOutput(outputId = "projectionDownloadAppear")
                  ),
                  mainPanel(plotOutput(outputId = "projectionBarplot")
-                           )
+                 )
                ),
                br(),
                hr(),
@@ -270,8 +271,8 @@ ui <-
                    radioButtons("annotationOrg", "Organism:",
                                 c("Human" = "hsap",
                                   "Mouse" = "mmus"
-                                  )
-                                ),
+                                )
+                   ),
                    br(),
                    radioButtons("annotationLevel", "Annotation level:",
                                 c("Level 1" = "lv1",
@@ -299,22 +300,22 @@ ui <-
                tabPanel("Annotation",
                         h2("Deconvolution using the TICA", align = "center"),
                         br(),
-               #         h5("Using the TICA to deconvolute spot-mixtures in spatial transcriptomic datasets"),
+                        #         h5("Using the TICA to deconvolute spot-mixtures in spatial transcriptomic datasets"),
                         br(),
                         h3("This functionality is under development and will be available soon.", align = "center"),
                         h3("Sorry for the inconvenience!", align = "center"),
                         br(),
                         br()
-               #          sidebarLayout(
-               #            sidebarPanel(
-               #              fileInput("deconvFile", "Upload your spots", multiple = FALSE, accept = NULL, width = NULL, buttonLabel = "Browse...", placeholder = "No file selected"),
-               #              #sliderInput("degInput", "Differentially Expressed Genes", 0, 10000, 3000, step = 500),
-               #              #radioButtons("normInput", "Normalization method", choices = c("SCT", "LogNormalize", "None"), selected = "None"),
-               #              selectInput("orgInput", "Organism", choices = c("Human", "Mouse")),
-               #              actionButton("button", "Run")
-               #            ),
-               #            mainPanel(img(src="www/spatial_stratification.PNG", height="100%", width="100%", align="right"))
-                        ),
+                        #          sidebarLayout(
+                        #            sidebarPanel(
+                        #              fileInput("deconvFile", "Upload your spots", multiple = FALSE, accept = NULL, width = NULL, buttonLabel = "Browse...", placeholder = "No file selected"),
+                        #              #sliderInput("degInput", "Differentially Expressed Genes", 0, 10000, 3000, step = 500),
+                        #              #radioButtons("normInput", "Normalization method", choices = c("SCT", "LogNormalize", "None"), selected = "None"),
+                        #              selectInput("orgInput", "Organism", choices = c("Human", "Mouse")),
+                        #              actionButton("button", "Run")
+                        #            ),
+                        #            mainPanel(img(src="www/spatial_stratification.PNG", height="100%", width="100%", align="right"))
+               ),
                br(),
                hr(),
                div(
@@ -376,7 +377,7 @@ server <- function(input, output, session) {
     
     # Return plot
     pt_grid
-    }, height = 750)
+  }, height = 750)
   
   #### Projection tab
   
@@ -418,17 +419,17 @@ server <- function(input, output, session) {
   # run projections and plot
   
   observeEvent(input$projectionRun, {
-
+    
     file <- input$projectionFile
     path <- file$datapath
-
+    
     level <- input$projectionLevel
     dimensions <- input$projectionDims
-
+    
     projected_data <- projection(query = path,
                                  annotation = level,
                                  ndims = dimensions
-                                 )
+    )
     
     bplot <- plot_projections(projected_data)
     
@@ -442,7 +443,7 @@ server <- function(input, output, session) {
   
   
   
-
+  
   # Annotation tab
   
   # validate input file and create run button
