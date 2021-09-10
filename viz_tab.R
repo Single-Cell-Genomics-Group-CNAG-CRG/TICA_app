@@ -1,3 +1,5 @@
+
+# load_palette
 complete_palette <- readRDS("www/complete_palette.rds")
 
 # create function to plot UMAP
