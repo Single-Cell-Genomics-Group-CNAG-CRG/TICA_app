@@ -5,102 +5,20 @@ library(shinythemes)
 library(Seurat)
 library(tidyverse)
 library(matchSCore2)
+library(SPOTlight)
 
-# load selected annotation level
+# load atlas
 atlas <- readRDS("www/TICAtlas_complete_subset.rds")
-
-# Load markers
-atlas_markers1 <- readRDS("www/TICAtlas_markers_lv1.rds")
-atlas_markers2 <- readRDS("www/TICAtlas_markers_lv2.rds")
-
-complete_palette <- readRDS("www/complete_palette.rds")
+# load markers 
+atlas_markers <- readRDS("www/TICAtlas_markers.rds")
 
 #######################################################
 
-### Load Visualization functions
+### Load functions
 source("viz_tab.R")
-
-### Define functions
-
-# function to project queries on the atlas to predict cell-wise annotation
-
-projection <- function(query, annotation, ndims) {
-  
-  query <- CreateSeuratObject(counts = read.delim(query, 
-                                                  sep = ",",
-                                                  row.names = 1))
-  
-  # project and make predictions
-  #### Modifiy annotation here!
-  predictions <- TransferData(
-    anchorset = FindTransferAnchors(
-      reference = atlas, 
-      query = query, 
-      dims = 1:ndims, 
-      normalization.method = "LogNormalize",
-      reference.assay = "RNA", 
-      query.assay = "RNA",
-      verbose = FALSE), 
-    # refdata = atlas$annotation,
-    refdata = atlas@meta.data[, annotation])
-  
-  # get predictions
-  
-  predictions <- predictions[, c("predicted.id", "prediction.score.max")]
-  colnames(predictions) <- c("predicted cell type", "confidence score")
-  
-  return(predictions)
-}
-
-
-# function to obtain a frequency barplot for the predictions
-
-plot_projections <- function(results){
-  bplot <- ggplot(results, aes(x = `predicted cell type`, 
-                               fill = `predicted cell type`)) +  
-    geom_bar() +
-    theme_minimal() +
-    scale_fill_manual(values = complete_palette[results$`predicted cell type` %>% unique %>% sort]) +
-    theme(text = element_text(size = 25),
-          axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
-          legend.text = element_text(size = 16)) +
-    guides(fill = guide_legend(ncol = 1, override.aes = list(size = 3)))
-  
-  
-  return(bplot)
-}
-
-
-# function to create jaccard index plot from matchSCore
-
-plot_heatmap <- function(marker_genes, annotation, organism){
-  
-  # load selected annotation level
-  if(annotation == "lv1"){
-    atlas_markers <- atlas_markers1
-  }
-  if(annotation == "lv2"){
-    atlas_markers <- atlas_markers2
-  }
-  
-  # read query marker genes
-  marker_genes <- read.delim(marker_genes,
-                             header = TRUE,
-                             sep = ",")
-  
-  if(organism == "mmus"){
-    marker_genes$gene <- stringr::str_to_upper(marker_genes$gene)
-  }
-  
-  marker_genes <- split(marker_genes$gene, marker_genes$cluster)
-  
-  ms <- matchSCore2::matchSCore2(gene_cl.ref = atlas_markers[sort(names(atlas_markers))], 
-                                 gene_cl.obs = marker_genes[sort(names(marker_genes))], 
-                                 ylab = "Atlas cell types", 
-                                 xlab = "Query clusters")
-  return(ms$ggplot)
-  
-}
+source("projection.R")
+source("annotation.R")
+source("deconvolution.R")
 
 #############################################################
 
@@ -111,8 +29,6 @@ ui <-
     theme = shinytheme("united"),
     
     ### TITLE
-    
-    #titlePanel(title=div(img(src="www/cnag-crg-logo.jpg", width="300"), "Tumor Immune Cell Atlas")),
     
     titlePanel(
       fluidRow(
@@ -145,9 +61,6 @@ ui <-
                  class = "footer",
                  includeHTML("footer.html")
                )
-               #
-               #img(src="www/tica.jpg", height="90%", width="90%", align="center")
-               
       ),
       
       ### TAB HOW TO USE
@@ -174,14 +87,8 @@ ui <-
       tabPanel("Visualization",
                h2("Visualize genes on the TICA", align = "center"),
                br(),
-               # h5("Using Seurat LabelTransfer we project TICA's cell-types onto new datasets"),
-               # br(),
-               ##
                sidebarLayout(
                  sidebarPanel(
-                   # fileInput(inputId = "projectionFile", "Upload your file", multiple = FALSE, accept = ".csv", width = NULL, buttonLabel = "Browse...", placeholder = "No file selected"),
-                   # actionButton(inputId = "projectionCheckFile", "Verify format"),
-                   # br(), br(),
                    selectizeInput(inputId = "annotLevel", "Annotation level to use", choices = c("level 1" = "lv1_annot", "level 2" = "lv2_annot", "cancer type" = "subtype"), multiple = FALSE),
                    selectizeInput(
                      inputId = "geneMarker",
@@ -191,17 +98,6 @@ ui <-
                      options = list(create = TRUE, maxOptions = 5),
                      size = 1,
                      multiple = FALSE),
-                   # sliderInput(inputId = "projectionDims", 
-                   #             label = "Select number of dimensions to use", 
-                   #             min = 1, 
-                   #             max = 50, 
-                   #             value = 25, 
-                   #             step = 1,
-                   #             round = TRUE
-                   # ),
-                   # uiOutput(outputId = "projectionRunAppear"),
-                   # br(), br(),
-                   # uiOutput(outputId = "projectionDownloadAppear")
                  ),
                  mainPanel(
                    plotOutput(outputId = "VizPlts")
@@ -222,12 +118,12 @@ ui <-
                br(),
                h5("Using Seurat LabelTransfer we project TICA's cell-types onto new datasets"),
                br(),
-               ##
                sidebarLayout(
                  sidebarPanel(
                    fileInput(inputId = "projectionFile", "Upload your file", multiple = FALSE, accept = ".csv", width = NULL, buttonLabel = "Browse...", placeholder = "No file selected"),
                    actionButton(inputId = "projectionCheckFile", "Verify format"),
-                   br(), br(),
+                   br(), 
+                   br(),
                    selectInput(inputId = "projectionLevel", "Annotation level to use", choices = c("level 1" = "lv1_annot", "level 2" = "lv2_annot"), multiple = FALSE),
                    sliderInput(inputId = "projectionDims", 
                                label = "Select number of dimensions to use", 
@@ -238,7 +134,8 @@ ui <-
                                round = TRUE
                    ),
                    uiOutput(outputId = "projectionRunAppear"),
-                   br(), br(),
+                   br(), 
+                   br(),
                    uiOutput(outputId = "projectionDownloadAppear")
                  ),
                  mainPanel(plotOutput(outputId = "projectionBarplot")
@@ -293,24 +190,28 @@ ui <-
       ### TAB DECONVOLUTION
       
       tabPanel("Deconvolution",
-               tabPanel("Annotation",
-                        h2("Deconvolution using the TICA", align = "center"),
-                        br(),
-                        #         h5("Using the TICA to deconvolute spot-mixtures in spatial transcriptomic datasets"),
-                        br(),
-                        h3("This functionality is under development and will be available soon.", align = "center"),
-                        h3("Sorry for the inconvenience!", align = "center"),
-                        br(),
-                        br()
-                        #          sidebarLayout(
-                        #            sidebarPanel(
-                        #              fileInput("deconvFile", "Upload your spots", multiple = FALSE, accept = NULL, width = NULL, buttonLabel = "Browse...", placeholder = "No file selected"),
-                        #              #sliderInput("degInput", "Differentially Expressed Genes", 0, 10000, 3000, step = 500),
-                        #              #radioButtons("normInput", "Normalization method", choices = c("SCT", "LogNormalize", "None"), selected = "None"),
-                        #              selectInput("orgInput", "Organism", choices = c("Human", "Mouse")),
-                        #              actionButton("button", "Run")
-                        #            ),
-                        #            mainPanel(img(src="www/spatial_stratification.PNG", height="100%", width="100%", align="right"))
+               h2("Deconvoltion using SPOTlight and the TICA", align = "center"),
+               br(),
+               h5("Using SPOTlight's NNMF-based deconvolution and the atlas as reference, we deconvolute mixture-like RNA-seq data into its proportions"),
+               br(),
+               ##
+               sidebarLayout(
+                 sidebarPanel(
+                   fileInput(inputId = "deconvolutionFile", "Upload your file", multiple = FALSE, accept = ".csv", width = NULL, buttonLabel = "Browse...", placeholder = "No file selected"),
+                   actionButton(inputId = "deconvolutionCheckFile", "Verify format"),
+                   br(), br(),
+                   selectInput(inputId = "deconvolutionLevel", "Annotation level to use", choices = c("level 1" = "lv1", "level 2" = "lv2_annot"), multiple = FALSE),
+                   radioButtons("deconvolutionOrg", "Organism:",
+                                c("Human" = "hsap",
+                                  "Mouse" = "mmus"
+                                )
+                   ),
+                   uiOutput(outputId = "deconvolutionRunAppear"),
+                   br(), br(),
+                   uiOutput(outputId = "deconvolutionDownloadAppear")
+                 ),
+                 mainPanel(plotOutput(outputId = "deconvolutionBarplot")
+                 )
                ),
                br(),
                hr(),
@@ -351,7 +252,7 @@ server <- function(input, output, session) {
   # Setting maximum file size to 8GB
   options(shiny.maxRequestSize = 8000 * 1024 ^ 2)
   
-  # Visualization
+  # Visualization tab
   
   # Use this trick from the website below to be able to load all the rownames
   # https://shiny.rstudio.com/articles/selectize.html
@@ -426,7 +327,8 @@ server <- function(input, output, session) {
     level <- input$projectionLevel
     dimensions <- input$projectionDims
     
-    projected_data <- projection(query = path,
+    projected_data <- projection(atlas,
+                                 query = path,
                                  annotation = level,
                                  ndims = dimensions
     )
@@ -439,10 +341,21 @@ server <- function(input, output, session) {
       downloadButton("projectionDownload","Download"),
     )
     
+    output$projectionDownload <- downloadHandler(
+        filename = function() {
+          paste('TICA_projection_', Sys.Date(), '.csv', sep='')
+        },
+        content = function(con) {
+          write.csv(projected_data, 
+                    con,
+                    quote = FALSE,
+                    row.names = TRUE,
+                    col.names = TRUE
+                    )
+        }
+    )
+    
   })
-  
-  
-  
   
   # Annotation tab
   
@@ -492,11 +405,97 @@ server <- function(input, output, session) {
     level <- input$annotationLevel
     org <- input$annotationOrg
     
-    hmplot <- plot_heatmap(path, level, org)
+    hmplot <- plot_heatmap(atlas, atlas_markers, path, level, org)
     
     output$annotationHeatmap <- renderPlot({hmplot}, height = 800)
     
   })
+  
+  
+  #### Deconvolution tab
+  
+  # validate input file and create run button
+  
+  observeEvent(input$deconvolutionCheckFile,{
+    
+    if(is.null(input$deconvolutionFile$datapath)){
+      showModal(modalDialog(
+        title = "Warning",
+        "Please upload a csv file",
+        easyClose = TRUE
+      ))
+    } else if(tools::file_ext(input$deconvolutionFile$datapath) != "csv"){
+      showModal(modalDialog(
+        title = "Warning",
+        "Please upload a csv file",
+        easyClose = TRUE
+      ))
+    } else if(testit::has_error(data.matrix(read.delim(input$deconvolutionFile$datapath, 
+                                                       sep = ",")))){
+      showModal(modalDialog(
+        title = "Warning",
+        "Please upload a valid csv file",
+        easyClose = TRUE
+      ))
+      
+    } else{
+      output$deconvolutionRunAppear <- renderUI(
+        actionButton("deconvolutionRun", "Run",
+                     style = "color: #fff; background-color: #e95420; border-color: #c34113;
+                                border-radius: 10px; 
+                                border-width: 2px"),
+      )
+    }
+  })
+  
+  
+  # run deconvolution and plot
+  
+  observeEvent(input$deconvolutionRun, {
+    
+    file <- input$deconvolutionFile
+    path <- file$datapath
+    
+    level <- input$deconvolutionLevel
+    org <- input$deconvolutionOrg
+    
+    deconvoluted_data <- deconvolution(atlas,
+                                       atlas_markers,
+                                       query = path,
+                                       annotation = level,
+                                       organism = org
+    )
+    
+    deconv_plot <- plot_spotlight(deconvoluted_data)
+    
+    output$deconvolutionBarplot <- renderPlot({deconv_plot}, height = 1000)
+    
+    output$deconvolutionRunAppear <- renderUI(
+      downloadButton("deconvolutionDownload","Download"),
+    )
+    
+    output$deconvolutionDownload <- downloadHandler(
+      filename = function() {
+        paste('TICA_deconvolution_', Sys.Date(), '.csv', sep='')
+      },
+      content = function(con) {
+        write.csv(deconvoluted_data, 
+                  con,
+                  quote = FALSE,
+                  row.names = TRUE,
+                  col.names = TRUE
+        )
+      }
+    )
+    
+    
+  })
+  
+  
+  
+  
+  
+  
   
 }
 
