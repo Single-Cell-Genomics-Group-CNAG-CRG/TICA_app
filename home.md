@@ -26,7 +26,7 @@ You can use this web application to:
 - (**under development!**) Deconvolute your bulk-like RNA-seq data to obtain the cell type proportions using our reference
 
 
-Depending on the function you want to use, you will need to upload different types of data. Check the 'File Formats' tab, to learn which data formats we support.
+Depending on the function you want to use, you will need to upload different types of data. Check the 'How to use' tab, to learn which data formats we support.
 You can get in touch with us for any question or suggestion on the 'Contact' tab.
 
 </div>
