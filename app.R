@@ -89,7 +89,7 @@ ui <-
                br(),
                sidebarLayout(
                  sidebarPanel(
-                   selectizeInput(inputId = "annotLevel", "Annotation level to use", choices = c("level 1" = "lv1_annot", "level 2" = "lv2_annot", "cancer type" = "subtype"), multiple = FALSE),
+                   selectizeInput(inputId = "annotLevel", "Variable to use for coloring", choices = c("level 1" = "lv1_annot", "level 2" = "lv2_annot", "cancer type" = "subtype"), multiple = FALSE),
                    selectizeInput(
                      inputId = "geneMarker",
                      "Gene to visualize",
