@@ -4,3 +4,4 @@
 rsconnect/
 rsconnect/*
 test_data/TICAtlas_complete_subset.rds
+www/TICAtlas_complete_subset.rds
