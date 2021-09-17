@@ -8,7 +8,8 @@ library(matchSCore2)
 library(SPOTlight)
 
 # load atlas
-atlas <- readRDS("www/TICAtlas_complete_subset.rds")
+atlas <- readRDS(url("https://raw.githubusercontent.com/Single-Cell-Genomics-Group-CNAG-CRG/TICA_app/main/www/TICAtlas_complete_subset.rds", method="libcurl"))
+
 # load markers 
 atlas_markers <- readRDS("www/TICAtlas_markers.rds")
 
